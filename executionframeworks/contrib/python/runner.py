@@ -27,6 +27,7 @@ ATOMICS_DIR_RELATIVE_PATH = os.path.join("..", "..", "..", "atomics")
 HASH_DB_RELATIVE_PATH = "techniques_hash.db"
 COMMAND_TIMEOUT = 20
 
+
 ##########################################
 # Filesystem & Helpers
 ##########################################
@@ -106,43 +107,45 @@ def load_techniques():
     print(".")
     return techniques
 
+
 def check_dependencies(executor, cwd):
-    dependencies            = "dependencies"
-    dependencies_executor   = "dependency_executor_name"
-    prereq_command          = "prereq_command"
-    get_prereq_command      = "get_prereq_command"
-    input_arguments         = "input_arguments"
-    
+    dependencies = "dependencies"
+    dependencies_executor = "dependency_executor_name"
+    prereq_command = "prereq_command"
+    get_prereq_command = "get_prereq_command"
+    input_arguments = "input_arguments"
+
     # If the executor doesn't have dependencies_executor key it doesn't have dependencies. Skip
     if dependencies not in executor or dependencies not in executor:
-        print("No '{}' or '{}' section found in the yaml file. Skipping dependencies check.".format(dependencies_executor,dependencies))
+        print(
+            "No '{}' or '{}' section found in the yaml file. Skipping dependencies check.".format(dependencies_executor,
+                                                                                                  dependencies))
         return True
-    
-    launcher = executor[dependencies_executor]    
-    
+
+    launcher = executor[dependencies_executor]
+
     for dep in executor[dependencies]:
         args = executor[input_arguments] if input_arguments in executor else {}
-        final_parameters = set_parameters(args, {})         
+        final_parameters = set_parameters(args, {})
         command = build_command(launcher, dep[prereq_command], final_parameters, cwd)
 
         p = subprocess.Popen(launcher, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT, env=os.environ, cwd=cwd)       
+                             stderr=subprocess.STDOUT, env=os.environ, cwd=cwd)
 
         p.communicate(bytes(command, "utf-8") + b"\n", timeout=COMMAND_TIMEOUT)
         # If the dependencies are not satisfied the command will exit with code 1, 0 otherwise.
         if p.returncode != 0:
             print("Dependencies not found. Fetching them...")
             if get_prereq_command not in dep:
-                print("Missing {} commands in the yaml file. Can't fetch requirements".format(get_prereq_command))          
+                print("Missing {} commands in the yaml file. Can't fetch requirements".format(get_prereq_command))
                 return False
             command = build_command(launcher, dep[get_prereq_command], final_parameters, cwd)
             d = subprocess.Popen(launcher, shell=False, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                        stderr=subprocess.STDOUT, env=os.environ, cwd=cwd)   
+                                 stderr=subprocess.STDOUT, env=os.environ, cwd=cwd)
             out, err = d.communicate(bytes(command, "utf-8") + b"\n", timeout=COMMAND_TIMEOUT)
-        p.terminate()        
+        p.terminate()
 
     return True
-
 
 
 ##########################################
@@ -228,9 +231,16 @@ def print_non_interactive_command_line(technique_name, executor_number, paramete
     print("In order to run this non-interactively:")
     print("    Python:")
     print("    techniques = runner.AtomicRunner()")
-    print("    techniques.execute(\"{name}\", position={pos}, parameters={params}, dependencies={dep}, cleanup={cleanup})".format(name=technique_name, pos=executor_number, params=parameters, dep=check_dep, cleanup=run_cleanup))
+    print(
+        "    techniques.execute(\"{name}\", position={pos}, parameters={params}, dependencies={dep}, cleanup={cleanup})".format(
+            name=technique_name, pos=executor_number, params=parameters, dep=check_dep, cleanup=run_cleanup))
     print("    Shell Script:")
-    print("    python3 runner.py run {name} {pos} --args '{params}' {dep} {cleanup}\n".format(name=technique_name, pos=executor_number, params=json.dumps(parameters), dep=flag_dep, cleanup=flag_cleanup))
+    print("    python3 runner.py run {name} {pos} --args '{params}' {dep} {cleanup}\n".format(name=technique_name,
+                                                                                              pos=executor_number,
+                                                                                              params=json.dumps(
+                                                                                                  parameters),
+                                                                                              dep=flag_dep,
+                                                                                              cleanup=flag_cleanup))
 
 
 def interactive_apply_executor(executor, path, technique_name, executor_number):
@@ -245,10 +255,10 @@ def interactive_apply_executor(executor, path, technique_name, executor_number):
         return
 
     # Request if we want to check the dependencies before running the executor.
-    check_dep = yes_or_no("Do you want to check dependencies? ")        
+    check_dep = yes_or_no("Do you want to check dependencies? ")
 
     # Request if we want to cleanup after the executor completes.
-    run_cleanup = yes_or_no("Do you want to run the cleanup after the executor completes? ")        
+    run_cleanup = yes_or_no("Do you want to run the cleanup after the executor completes? ")
 
     # If so, get the input parameters.
     if "input_arguments" in executor:
@@ -307,7 +317,9 @@ def apply_executor(executor, path, parameters):
     built_command = build_command(launcher, command, final_parameters, path)
 
     # begin execution with the above parameters.
-    execute_command(launcher, built_command, path)
+    output = execute_command(launcher, built_command, path)
+    return output
+
 
 def apply_cleanup(executor, path, parameters):
     if "cleanup_command" not in executor["executor"] or executor["executor"]["cleanup_command"] == None:
@@ -322,15 +334,16 @@ def apply_cleanup(executor, path, parameters):
     # begin execution with the above parameters.
     execute_command(launcher, built_command, path)
 
+
 ##########################################
 # Text Input
 ##########################################
 
 def yes_or_no(question):
     """Asks a yes or no question, and captures input.  Blank input is interpreted as Y."""
-    reply = str(input(question+' (Y/n): ')).capitalize().strip()
+    reply = str(input(question + ' (Y/n): ')).capitalize().strip()
 
-    if reply == "": #pylint: disable=no-else-return
+    if reply == "":  # pylint: disable=no-else-return
         return True
     elif reply[0] == 'Y':
         return True
@@ -359,6 +372,7 @@ class ManualExecutorException(Exception):
     """Custom Exception that we trigger triggered when we encounter manual executors."""
     pass
 
+
 def convert_launcher(launcher):
     """Takes the YAML launcher, and outputs an appropriate executable
     to run the command."""
@@ -366,8 +380,8 @@ def convert_launcher(launcher):
     plat = get_platform()
 
     # Regular command prompt.
-    if launcher == "command_prompt": #pylint: disable=no-else-return
-        if plat == "windows": #pylint: disable=no-else-return
+    if launcher == "command_prompt":  # pylint: disable=no-else-return
+        if plat == "windows":  # pylint: disable=no-else-return
             # This is actually a 64bit CMD.EXE.  Do not change this to a 32bits CMD.EXE
             return "C:\\Windows\\System32\\cmd.exe"
 
@@ -389,7 +403,7 @@ def convert_launcher(launcher):
 
     elif launcher == "sh":
         return "/bin/sh"
-    
+
     elif launcher == "bash":
         return "/bin/bash"
 
@@ -403,7 +417,7 @@ def convert_launcher(launcher):
         return launcher
 
 
-def build_command(launcher, command, parameters, path): #pylint: disable=unused-argument
+def build_command(launcher, command, parameters, path):  # pylint: disable=unused-argument
     """Builds the command line that will eventually be run."""
 
     # Using a closure! We use the replace to match found objects
@@ -468,7 +482,7 @@ def print_process_output(outs, errs):
     if errs:
         print("Errors: {}".format(clean_output(errs.decode("utf-8", "ignore"))), flush=True)
 
-        
+
 def execute_command(launcher, command, cwd):
     """Executes a command with the given launcher."""
 
@@ -481,6 +495,8 @@ def execute_command(launcher, command, cwd):
         print_process_output(outs, errs)
 
     else:
+        cumulative_out = b""
+        cumulative_err = b""
         for comm in command.split("\n"):
 
             # We skip empty lines.  This is due to the split just above.
@@ -490,8 +506,15 @@ def execute_command(launcher, command, cwd):
             # # We actually run the command itself.
             outs, errs = execute_subprocess(launcher, comm, cwd)
             print_process_output(outs, errs)
-            
+            if outs is not None:
+                cumulative_out += outs
+            if errs is not None:
+                cumulative_err += errs
             continue
+        outs = cumulative_out
+        errs = cumulative_err
+
+    return [outs, errs]
 
 
 #########################################
@@ -549,6 +572,7 @@ def check_hash_db(hash_db_path, executor_data, technique_name, executor_position
     # If a previous hash already exists, compare both hashes.
     return old_hash == new_hash
 
+
 def clear_hash(hash_db_path, technique_to_clear, position_to_clear=-1):
     """Clears a hash from the DB, then saves the DB to a file."""
     hash_db = load_hash_db()
@@ -564,6 +588,7 @@ def clear_hash(hash_db_path, technique_to_clear, position_to_clear=-1):
 
     write_hash_db(hash_db_path, hash_db)
 
+
 #########################################
 # Atomic Runner and Main
 #########################################
@@ -575,7 +600,6 @@ class AtomicRunner():
         """Constructor.  Ensures that the techniques are loaded before we can run them."""
         # Loads techniques.
         self.techniques = load_techniques()
-
 
     def repl(self):
         """Presents a REPL to the user so that they may interactively run certain techniques."""
@@ -593,7 +617,6 @@ class AtomicRunner():
 
             i = input("> ").strip()
 
-
     def execute(self, technique_name, position=0, parameters=None, dependencies=False, cleanup=False):
         """Runs a technique non-interactively."""
 
@@ -602,7 +625,7 @@ class AtomicRunner():
         if technique_name not in self.techniques:
             print("No technique {} found. Skipping...".format(technique_name))
             return False
-        
+
         # Gets the tech.
         tech = self.techniques[technique_name]
 
@@ -611,17 +634,18 @@ class AtomicRunner():
 
         if len(executors) < position:
             print("The position '{}' couldn't be found.".format(position))
-            print("The teqhnique {} has {} available tests for the current platform. Skipping...".format(technique_name,len(executors)))
-            return False  
+            print("The teqhnique {} has {} available tests for the current platform. Skipping...".format(technique_name,
+                                                                                                         len(
+                                                                                                             executors)))
+            return False
 
         print("================================================")
         if dependencies:
             print("Checking dependencies {}/{}\n".format(technique_name, position))
             if not check_dependencies(executors[position], tech["path"]):
                 return False
-        
-        print("Executing {}/{}\n".format(technique_name, position))
 
+        print("Executing {}/{}\n".format(technique_name, position))
 
         try:
             # Get executor at given position.
@@ -638,13 +662,14 @@ class AtomicRunner():
         # Check that hash matches previous executor hash or that this is a new hash.
         if not check_hash_db(HASH_DB_RELATIVE_PATH, executor, technique_name, position):
             print("Warning: new executor fingerprint does not match the old one! Skipping this execution.")
-            print("To re-enable this test, review this specific executor, test your payload, and clear out this executor's hash from the database.")
+            print(
+                "To re-enable this test, review this specific executor, test your payload, and clear out this executor's hash from the database.")
             print("Run this: python runner.py clearhash {} {}.".format(technique_name, position))
             return False
 
         # Launch execution.
         try:
-            apply_executor(executor, tech["path"], parameters)
+            response = apply_executor(executor, tech["path"], parameters)
         except ManualExecutorException:
             print("Cannot launch a technique with a manual executor. Aborting.")
             return False
@@ -653,8 +678,7 @@ class AtomicRunner():
                 print("Running cleanup commands.")
                 apply_cleanup(executor, tech["path"], parameters)
 
-        return True
-
+        return response
 
     def interactive_execute(self, technique_name):
         """Interactively execute a single technique."""
@@ -693,7 +717,7 @@ class AtomicRunner():
                         # Interactively apply all chosen executors.
                         interactive_apply_executor(executors[i], tech["path"], tech["attack_technique"], i)
                     break
-                except Exception as e: #pylint: disable=broad-except
+                except Exception as e:  # pylint: disable=broad-except
                     print("Could not parse the input. make sure this is a space-separated list of integers.")
                     print(e)
         else:
@@ -701,7 +725,7 @@ class AtomicRunner():
             interactive_apply_executor(executors[0], tech["path"], tech["attack_technique"], 0)
 
 
-def interactive(args): #pylint: disable=unused-argument
+def interactive(args):  # pylint: disable=unused-argument
     """Launch the runner in interactive mode."""
     runner = AtomicRunner()
     runner.repl()
@@ -729,14 +753,19 @@ def main():
     parser_run = subparsers.add_parser('run', help="Ponctually runs a single technique / executor pair.")
     parser_run.add_argument('technique', type=str, help="Technique to run.")
     parser_run.add_argument('position', type=int, help="Position of the executor in technique to run.")
-    parser_run.add_argument("--dependencies", action='store_true', help="Check for dependencies, in any, and fetch them if necessary.")
-    parser_run.add_argument("--cleanup", action='store_true', help="Run cleanup commands, if any, after executor completed.")
-    parser_run.add_argument('--args', type=str, default="{}", help="JSON string representing a dictionary of arguments (eg. '{ \"arg1\": \"val1\", \"arg2\": \"val2\" }' )")
+    parser_run.add_argument("--dependencies", action='store_true',
+                            help="Check for dependencies, in any, and fetch them if necessary.")
+    parser_run.add_argument("--cleanup", action='store_true',
+                            help="Run cleanup commands, if any, after executor completed.")
+    parser_run.add_argument('--args', type=str, default="{}",
+                            help="JSON string representing a dictionary of arguments (eg. '{ \"arg1\": \"val1\", \"arg2\": \"val2\" }' )")
     parser_run.set_defaults(func=run)
 
-    parser_clear = subparsers.add_parser('clearhash', help="Clears a hash from the database, allowing the technique to be run once again.")
+    parser_clear = subparsers.add_parser('clearhash',
+                                         help="Clears a hash from the database, allowing the technique to be run once again.")
     parser_clear.add_argument('technique', type=str, help="Technique to run.")
-    parser_clear.add_argument('--position', '-p', type=int, default=-1, help="Position of the executor in technique to run.")
+    parser_clear.add_argument('--position', '-p', type=int, default=-1,
+                              help="Position of the executor in technique to run.")
     parser_clear.set_defaults(func=clear)
 
     try:
