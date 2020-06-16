@@ -492,7 +492,7 @@ def execute_command(launcher, command, cwd):
     # powershell.exe -Command - (Tell powershell to read scripts from stdin)
     if "powershell" in launcher:
         outs, errs = execute_subprocess([launcher, '-Command', '-'], command, cwd)
-        print_process_output(outs, errs)
+        print_process_output((command.encode() + b":\n" + outs), errs)
 
     else:
         cumulative_out = b""
@@ -507,7 +507,7 @@ def execute_command(launcher, command, cwd):
             outs, errs = execute_subprocess(launcher, comm, cwd)
             print_process_output(outs, errs)
             if outs is not None:
-                cumulative_out += outs
+                cumulative_out += b"> " + comm.encode() + b":\n" + outs
             if errs is not None:
                 cumulative_err += errs
             continue
@@ -624,7 +624,7 @@ class AtomicRunner():
 
         if technique_name not in self.techniques:
             print("No technique {} found. Skipping...".format(technique_name))
-            return False
+            return [b'', b'No technique found']
 
         # Gets the tech.
         tech = self.techniques[technique_name]
@@ -637,13 +637,13 @@ class AtomicRunner():
             print("The teqhnique {} has {} available tests for the current platform. Skipping...".format(technique_name,
                                                                                                          len(
                                                                                                              executors)))
-            return False
+            return [b'', b'Executor not found. Out of bounds?']
 
         print("================================================")
         if dependencies:
             print("Checking dependencies {}/{}\n".format(technique_name, position))
             if not check_dependencies(executors[position], tech["path"]):
-                return False
+                return [b'', b'Dependencies not met!']
 
         print("Executing {}/{}\n".format(technique_name, position))
 
@@ -652,12 +652,12 @@ class AtomicRunner():
             executor = executors[position]
         except IndexError:
             print("Out of bounds: this executor is not part of that technique's list!")
-            return False
+            return [b'', b'Out of bounds: this executor is not part of that technique\'s list!']
 
         # Make sure that it is compatible.
         if not is_valid_executor(executor, get_platform()):
             print("Warning: This executor is not compatible with the current platform!")
-            return False
+            return [b'', b'Warning: This executor is not compatible with the current platform!']
 
         # Check that hash matches previous executor hash or that this is a new hash.
         if not check_hash_db(HASH_DB_RELATIVE_PATH, executor, technique_name, position):
@@ -665,14 +665,14 @@ class AtomicRunner():
             print(
                 "To re-enable this test, review this specific executor, test your payload, and clear out this executor's hash from the database.")
             print("Run this: python runner.py clearhash {} {}.".format(technique_name, position))
-            return False
+            return [b'', b'Warning: new executor fingerprint does not match the old one! Skipping this execution.']
 
         # Launch execution.
         try:
             response = apply_executor(executor, tech["path"], parameters)
         except ManualExecutorException:
             print("Cannot launch a technique with a manual executor. Aborting.")
-            return False
+            return [b'', b'Cannot launch a technique with a manual executor. Aborting.']
         finally:
             if cleanup:
                 print("Running cleanup commands.")
